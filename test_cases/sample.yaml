@@ -1,0 +1,19 @@
+- id: capital_france
+  input: "What is the capital of France?"
+  expected: "Paris"
+  grader: contains
+
+- id: capital_japan
+  input: "What is the capital of Japan?"
+  expected: "Tokyo"
+  grader: contains
+
+- id: capital_australia
+  input: "What is the capital of Australia?"
+  expected: "Canberra"
+  grader: contains
+
+- id: explain_recursion
+  input: "Explain recursion in one sentence."
+  rubric: "The response correctly explains recursion as a function/process that calls or refers to itself, is factually accurate, and is roughly one sentence long."
+  grader: llm_judge

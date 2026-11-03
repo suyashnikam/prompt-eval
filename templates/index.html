@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Scorer</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e5e3df;
+    --text: #1f1e1c;
+    --muted: #6b6a66;
+    --accent: #c15f3c;
+    --good: #3f8f5f;
+    --mid: #c79a2e;
+    --bad: #c1483c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 64px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-top: 0; margin-bottom: 24px; }
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    background: var(--card);
+    color: var(--text);
+  }
+  button {
+    margin-top: 14px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .error {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #fbeceae8;
+    color: var(--bad);
+    border: 1px solid #f0c6c1;
+  }
+  [hidden] { display: none !important; }
+
+  .results { margin-top: 32px; }
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .score-circle {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .score-label { color: var(--muted); font-size: 0.9rem; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+
+  .dim-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.88rem; }
+  .dim-name { width: 110px; flex-shrink: 0; color: var(--muted); text-transform: capitalize; }
+  .dim-bar-track { flex: 1; height: 8px; background: #eeece8; border-radius: 4px; overflow: hidden; }
+  .dim-bar-fill { height: 100%; border-radius: 4px; }
+  .dim-score { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  ul.bullets { margin: 0; padding-left: 20px; }
+  ul.bullets li { margin-bottom: 6px; font-size: 0.92rem; }
+
+  pre.prompt-block {
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.88rem;
+    margin: 0 0 10px;
+  }
+  .copy-btn {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    margin-top: 0;
+  }
+
+  details.tech {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  details.tech summary { cursor: pointer; font-weight: 600; }
+  details.tech pre {
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 0.78rem;
+  }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Prompt Scorer</h1>
+  <p class="subtitle">Paste a prompt below to get a quality score, a breakdown by category, and an improved version you can use with any AI tool.</p>
+
+  <textarea id="prompt-input" placeholder="Paste your prompt here..."></textarea>
+  <br>
+  <button id="score-btn" type="button">Score this prompt</button>
+
+  <div id="error-box" class="error" hidden></div>
+
+  <div id="results" class="results" hidden>
+    <div class="score-row">
+      <div id="score-circle" class="score-circle">-</div>
+      <div>
+        <div style="font-weight:600;">Overall score</div>
+        <div class="score-label">Out of 10</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Scorecard</h2>
+      <div id="scorecard-rows"></div>
+    </div>
+
+    <div class="card">
+      <h2>What's working</h2>
+      <ul id="strengths-list" class="bullets"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Improvement points</h2>
+      <ul id="improvements-list" class="bullets"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Improved prompt</h2>
+      <pre id="improved-prompt" class="prompt-block"></pre>
+      <button id="copy-btn" class="copy-btn" type="button">Copy improved prompt</button>
+    </div>
+
+    <details class="tech">
+      <summary>Technical details</summary>
+      <pre id="tech-json"></pre>
+    </details>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById('prompt-input');
+const btn = document.getElementById('score-btn');
+const errorBox = document.getElementById('error-box');
+const results = document.getElementById('results');
+
+function scoreColor(score) {
+  if (score >= 8) return 'var(--good)';
+  if (score >= 5) return 'var(--mid)';
+  return 'var(--bad)';
+}
+
+function renderScorecard(scorecard) {
+  const container = document.getElementById('scorecard-rows');
+  container.innerHTML = '';
+  Object.entries(scorecard).forEach(([name, value]) => {
+    const row = document.createElement('div');
+    row.className = 'dim-row';
+    row.innerHTML = `
+      <div class="dim-name">${name}</div>
+      <div class="dim-bar-track">
+        <div class="dim-bar-fill" style="width:${value * 10}%; background:${scoreColor(value)}"></div>
+      </div>
+      <div class="dim-score">${value}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderList(elementId, items) {
+  const el = document.getElementById(elementId);
+  el.innerHTML = '';
+  items.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    el.appendChild(li);
+  });
+}
+
+async function scorePrompt() {
+  const prompt = input.value.trim();
+  errorBox.hidden = true;
+  if (!prompt) {
+    errorBox.textContent = 'Please paste a prompt first.';
+    errorBox.hidden = false;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scoring...';
+  results.hidden = true;
+
+  try {
+    const resp = await fetch('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data.error || 'Something went wrong.');
+    }
+
+    const circle = document.getElementById('score-circle');
+    circle.textContent = data.overall_score;
+    circle.style.background = scoreColor(data.overall_score);
+
+    renderScorecard(data.scorecard);
+    renderList('strengths-list', data.strengths);
+    renderList('improvements-list', data.improvement_points);
+    document.getElementById('improved-prompt').textContent = data.improved_prompt;
+    document.getElementById('tech-json').textContent = JSON.stringify(data, null, 2);
+
+    results.hidden = false;
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Score this prompt';
+  }
+}
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+  const text = document.getElementById('improved-prompt').textContent;
+  navigator.clipboard.writeText(text);
+  const copyBtn = document.getElementById('copy-btn');
+  const original = copyBtn.textContent;
+  copyBtn.textContent = 'Copied!';
+  setTimeout(() => { copyBtn.textContent = original; }, 1500);
+});
+
+btn.addEventListener('click', scorePrompt);
+</script>
+</body>
+</html>
